@@ -1,0 +1,105 @@
+% 
+%   Copyright (C) 2020  Duan Shaohua <smartJack1996@gmail.com>
+% 
+%   Note: 
+% 用于实现彩色图像多重水印
+% 将彩色图像分为R G B三层，并使用两种鲁棒水印算法和一种脆弱水印算法将水印嵌入到三层中。
+% R 层，使用shearlet+DWT+DCT+SVD的算法进行鲁棒水印1嵌入
+% G 层，使用shearlet+DWT+SVD的算法进行鲁棒水印2嵌入
+% B 层，使用hash算法+LSB嵌入的算法进行脆弱水印的嵌入
+% 使用shearlet+dwt+svd的方法进行水印的嵌入，加入旋转矫正。
+% 可以调用attack函数进行常规的鲁棒性测试
+
+
+clear
+tic
+% 宿主图像读取
+
+hostImage = imread('lena512color.tiff'); 
+% hostImage = imread('TI_Airplane.tiff'); 
+% hostImage = imread('TI_Baboon.tiff'); 
+% hostImage = imread('TI_Lena_color.tiff'); 
+% hostImage = imread('TI_Peppers.tiff'); 
+% hostImage = imread('TI_house.tiff'); 
+% hostImage = imread('TI_Sailboat.tiff'); 
+% hostImage = imread('TI_Splash.tiff'); 
+% hostImage = imread('TI_Tiffany.bmp'); 
+% 读入水印图像
+wImg=imread('wImg32.png'); 
+
+% 设定嵌入水印的图像
+watermarkedImg = hostImage;
+
+% 对宿主图像进行分层
+ht1=hostImage(:,:,1); % R
+ht2=hostImage(:,:,2); % G
+ht3=hostImage(:,:,3); % B
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% %%%%%%%%%%%%%%%%%%%%%%%%%      参数定义    %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+s1=1; % shearlet变换级数
+block_size1=8; % 鲁棒水印1 分块大小
+block_size2=4; % 鲁棒水印2 分块大小
+block_size3=16; % 脆弱水印 分块大小
+wname='db2'; % 鲁棒水印1 2 DWT变换小波名
+% lambda=25; % 鲁棒水印1 嵌入强度的确定
+% dt=85; % 鲁棒水印2 嵌入强度的确定
+
+lambda=15; % 鲁棒水印1 嵌入强度的确定 25
+dt=72; % 鲁棒水印2 嵌入强度的确定 85
+img_border=5; % 旋转矫正边缘空出宽度
+
+
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% %%%%%%%%%%%%%%%%%%%%%%%%%    水印1嵌入   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+w1 = dsh_embed2(ht1,wImg,s1,block_size1,lambda,wname); % 调用水印嵌入方法，嵌入鲁棒水印1
+
+watermarkedImg(:,:,1) = w1; % 使用嵌入水印后的R层替换水印图像中的R层
+
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% %%%%%%%%%%%%%%%%%%%%%%%%%    水印2嵌入   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+w2 = dsh_embed3(ht2,wImg,s1,block_size2,dt,wname); % 调用水印嵌入方法，嵌入鲁棒水印2
+
+watermarkedImg(:,:,2) = w2; % 使用嵌入水印后的R层替换水印图像中的G层
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% %%%%%%%%%%%%%%%%%%%%%%%%%    水印3嵌入   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+watermarkedImg = dsh_embedFragileW(watermarkedImg,block_size3); % 调用水印嵌入方法，嵌入脆弱水印。输入参数：嵌入鲁棒水印后的图像，分块大小
+
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% %%%%%%%%%%%%%%%%%%%%%    旋转矫正参数生成   %%%%%%%%%%%%%%%%%%%%%%%%%%%
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% [des1,loc1] = getFeatures(watermarkedImg,img_border); % 调用旋转矫正方法，选取特征点。
+% [des1,loc1] = L_getFliterFeature(watermarkedImg,des1,loc1,1); % 四叉树分解，特征点选取
+
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% %%%%%%%%%%%%%%%%%%%%%%%      计算PSNR     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+psnr_32 = psnr(hostImage,watermarkedImg); % 计算PSNR
+ssim_32 = ssim(hostImage,watermarkedImg); % 计算SSIM
+
+imwrite(watermarkedImg,'watermarkedImg.png'); % 将水印图像保存
+
+
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% %%%%%%%%%%%%%%%%%%%%%%   水印提取及攻击   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% 以下为水印的提取过程
+% 旋转攻击
+
+watermarkedImg = imread('watermarkedImg.png'); 
+
+
+% 旋转攻击测试，会测试两个水印的鲁棒性
+% [att_r] = rotate_attack(wImg,watermarkedImg,des1,loc1,s1,block_size1,block_size2,wname,dt,32);
+
+% 鲁棒性常规测试，一个水印一个水印测试
+% [att1] = dsh_attact_test2(wImg,watermarkedImg(:,:,1),s1,block_size1,wname,32);
+% [att2] = dsh_attact_test3(wImg,watermarkedImg(:,:,2),s1,block_size2,wname,dt,32);
+toc
