@@ -1,0 +1,51 @@
+本函数实现了使用hash函数，进行篡改定位的功能。
+算法描述：
+嵌入：
+1.传入一个彩色图像，将其分成32*32的不重叠小块。
+2.使用R层和G层的小块生成hash水印，水印序列长度为1024bit。
+3.将1024bit的水印使用LSB嵌入的方法嵌入到B层。
+提取：
+1.将待检测图像分成32*32的不重叠小块。
+2.使用R层和G层的小块生成hash水印，水印序列长度为1024bit。
+3.提取B层中LSB中的水印，并和生成的1024bit进行比对。
+4.如果比中，不进行任何操作，如果没有比中，则这一块认为是被修改的区域，将进行标记。
+
+方法描述：
+function [fwcImg] = dsh_embedFragileW(rwImg,block_size)
+本方法用于嵌入脆弱水印。
+rwImg:准备嵌入脆弱水印的图像，此处为三层彩色图像。
+block_size：分块大小
+fwcImg:嵌入完毕的图像，此处也为三层彩色图像
+
+function [fw_martrix] = dsh_lsbEmbed(Img,hash_sequence)
+该方法用于LSB嵌入水印
+Img：需要LSB嵌入的层
+hash_sequence：需要嵌入的hash序列
+fw_martrix：LSB嵌入完成后的层
+
+function [taggedImg] = dsh_extractFragileW(wImg,block_size)
+此方法用于提取脆弱水印，对与被修改的区域进行标记
+wImg：待提取的图像
+block_size：分块大小
+taggedImg：篡改标记图像
+
+function [istag] = dsh_lsbExtract(mb,hash_sequence)
+此方法用于提取LSB水印。
+mb：准备提取水印的层
+hash_sequence：需要对比的hash序列
+istag：是否完全相同，如果提取的和计算的hash序列完全相同，则为1，否则为0
+
+function [hash_sequence] = dsh_hashcode(rwImg_r,fwImg_b)
+该方法用于生成hash编码，已嵌入鲁棒水印的层生成要嵌入的编码
+rwImg_r：需要生成hash编码的层1
+fwImg_b：需要生成hash编码的层2
+hash_sequence：两层生成的编码融合产生的hash序列1024位
+
+
+function random_sequence = get_hash_sequence(K,meth)
+K：密钥
+meth：生成方法
+random_sequence ：生成的随机序列
+
+function h = hash(inp,meth)
+该方法用于生成hash值，get_hash_sequence调用
